@@ -1,0 +1,10 @@
+name             'gistic_cloudera'
+maintainer       'YOUR_NAME'
+maintainer_email 'YOUR_EMAIL'
+license          'All rights reserved'
+description      'Installs/Configures gistic_cloudera'
+long_description 'Installs/Configures gistic_cloudera'
+version          '0.1.0'
+
+depends 'apt'
+depends 'java'

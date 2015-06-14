@@ -1,0 +1,1 @@
+http://archive.cloudera.com/cm5/installer/5.3.0/cloudera-manager-installer.bin

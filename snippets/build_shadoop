@@ -1,0 +1,87 @@
+
+cd fe && mvn clean package dependency:copy-dependencies -DskipTests=true
+
+
+export PATH=~/spatialHadoop2.3/bin:$PATH
+
+cp /home/ubuntu/hadoop_2_0/bin1/dist/spatialhadoop-2.3.jar ~/spatialHadoop2.3/lib/
+cp /home/ubuntu/hadoop_2_0/bin1/dist/spatialhadoop-main.jar ~/spatialHadoop2.3/
+
+shadoop sample ~/nyc_trips/ shape:org.gistic.spatialHadoop.NYCTripData.Trip -overwrite -local -local count:10000 outshape:org.gistic.spatialHadoop.OSM_data.PointRecord 
+
+nohup shadoop sample /media/data/osm/all_points/all_nodes  shape:org.gistic.spatialHadoop.OSM_data.PointRecord sindex:rtree -overwrite -local -local size:1000000000 outshape:org.gistic.spatialHadoop.OSM_data.PointRecord > /media/data/osm/all_points/all_points_1G_sample &
+
+nohup shadoop index /media/data/osm/all_points/all_points_1G_sample /media/data/osm/all_points/all_points_1G_sample_rtree shape:org.gistic.spatialHadoop.OSM_data.PointRecord sindex:rtree -overwrite -local -local &
+
+export HADOOP_CLASSPATH=$HADOOP_CLASSPATH:/home/ubuntu/shadoop/source/lib/ivy/common/*:/home/ubuntu/shadoop/gistic/gistic_shadoop_shapes.jar:/home/ubuntu/shadoop/source/bin2/dist/*
+
+
+nohup hadoop jar \
+/home/ubuntu/shadoop/source/bin2/dist/spatialhadoop-2.3.jar \
+index \
+-libjars "/home/ubuntu/shadoop/gistic_shapes/dist/shadoop_shapes.jar,/home/ubuntu/shadoop/source/bin2/dist/spatialhadoop-2.3.jar,/home/ubuntu/shadoop/source/bin2/dist/spatialhadoop-main.jar" \
+/data/osm/all_nodes/all_raw.tsv  \
+/data/osm/all_nodes/all_rtree.d \
+shape:org.gistic.spatialHadoop.OSM_data.PointRecord \
+outshape:org.gistic.spatialHadoop.OSM_data.PointRecord \
+sindex:rtree \
+-overwrite & disown
+
+
+
+
+
+shadoop index ~/nyc_taxi/sample.csv ~/nyc_trips_tiny_sample/ shape:org.gistic.spatialHadoop.NYCTripData.Trip sindex:rtree -overwrite -local
+
+
+
+scp ./Trip.java ubuntu@52.8.1.156:/home/ubuntu/hadoop_2_0/src/org/gistic/spatialHadoop/NYCTripData
+
+
+scp ubuntu@52.8.1.156:/home/ubuntu/hadoop_2_0/ivy.xml ./
+
+
+create external table nyc_trips
+(medallion string,
+hack_license string,
+vendor_id string,
+rate_code tinyint,
+store_and_fwd_flag string,
+pickup_datetime string,
+dropoff_datetime string,
+passenger_count int,
+trip_time_in_secs double,
+trip_distance double,
+x double, 
+y double,
+dropoff_longitude double,
+dropoff_latitude double)
+PARTITIONED BY (tag string)
+row format delimited fields terminated by ',' 
+stored as rtree 
+tblproperties ('globalIndex'='/nyc_trips/_master.rtree');
+
+create external table osm_all_points
+(
+node_id string,
+x double,
+y double,
+tags string)
+PARTITIONED BY (tag string)
+row format delimited fields terminated by '\t' 
+stored as rtree 
+tblproperties ('globalIndex'='/osm/all_points/_master.rtree');
+
+
+
+alter table nyc_trips_sample add partition (tag='data_00001_1.rtree') location '/nyc_trips_sample/tag=data_00001_1.rtree/';
+
+
+ jdb -attach 8000
+
+  select COUNT(*) from nyc_trips where INSIDE(RECTANGLE(-74.65,39,-74.5,40));
+  select COUNT(*) from nyc_trips where INSIDE(RECTANGLE(-100,-100,100,100));
+
+  select COUNT(*) from nyc_trips where x > -74.65 && x <-74.5 && y < 40 && y > 39;
+  select COUNT(*) from nyc_trips where x > -100 && x < 100 && y < 100 && y > -100;
+
